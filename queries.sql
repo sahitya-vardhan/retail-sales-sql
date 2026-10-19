@@ -58,3 +58,6 @@ WHERE top2_trans <= 2
 --Q:WHAT PERCENTAGE DOES EACH TRANSACTION CONTRIBUTE TO ITS CATEGORY TOTAL SALES
 SELECT "date", "product_category", "Total Amount",round("Total Amount" * 100 / sum("Total Amount")OVER( PARTITION BY "product_category" ORDER BY "Total Amount" DESC),2) AS pct_by_category FROM sales
 
+--Q: HOW MANY TRANSACTIONS ARE HIGH, MEDIUM OR LOW VALUE?
+SELECT count(*) AS CNT, "date", "product_category", "Total Amount", CASE WHEN "Total Amount" >= 1000 THEN "High" WHEN "Total Amount" >= 300 THEN "medium" ELSE 'LOW' END AS SIZE_LABEL FROM sales
+GROUP BY "SIZE_LABEL"
