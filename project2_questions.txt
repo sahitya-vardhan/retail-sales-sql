@@ -1,0 +1,5 @@
+1. which product category brings in the most revenue, and which the least?
+
+2.is there a pattern by month(does revenue rise or fall in same month)?
+
+3.which customer group sepnds the most(by age group or gender?)

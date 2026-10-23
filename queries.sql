@@ -61,3 +61,33 @@ SELECT "date", "product_category", "Total Amount",round("Total Amount" * 100 / s
 --Q: HOW MANY TRANSACTIONS ARE HIGH, MEDIUM OR LOW VALUE?
 SELECT count(*) AS CNT, "date", "product_category", "Total Amount", CASE WHEN "Total Amount" >= 1000 THEN "High" WHEN "Total Amount" >= 300 THEN "medium" ELSE 'LOW' END AS SIZE_LABEL FROM sales
 GROUP BY "SIZE_LABEL"
+
+--Q:what is the total value of beauty transactions of 500 or more?
+SELECT sum("Total Amount") FROM sales
+WHERE "product_category" = 'Beauty' AND "Total Amount" >= 500;
+
+--Q:Revenue by month. In SQLite, strftime('%m', date) pulls the month from the date. Group by it.
+SELECT strftime('%m', date) as month, sum("total_amount") as revenue from sales
+GROUP BY strftime('%m', date)
+ORDER BY month
+
+--Q:The count of High, Medium and Low labels by category. Hint: put your CASE WHEN inside a derived table, then GROUP BY product_category, size_label.
+SELECT "date", "product_category" "total_amount",
+CASE when "total_amount" >= 1000 THEN 'HIGH'
+WHEN "total_amount" >300 THEN 'MEDIUM'
+ELSE'low'
+END AS SIZE_LABEL FROM sales
+GROUP BY "product_category", SIZE_LABEL
+ORDER BY "DATE" ASC;
+
+--Q:combining in The count of High, Medium and Low labels by category. Hint: put your CASE WHEN inside a derived table, then GROUP BY product_category, size_label.
+
+--Q:my question “how much revenue does each size band bring per category per month? --Q:
+
+SELECT "product_category", "total_amount", strftime('%m', date) AS month, SUM("total_amount") AS revenue, count(\*) as transactions,
+CASE when "total_amount" >= 1000 THEN 'HIGH'
+WHEN "total_amount" >300 THEN 'MEDIUM'
+ELSE'low'
+END AS SIZE_LABEL FROM sales
+GROUP BY "product_category", SIZE_LABEL, strftime('%m', date)
+ORDER BY month;
