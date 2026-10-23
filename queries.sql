@@ -1,93 +1,168 @@
---project 2: reatil sales analysis--
---Database: reatil_practice.db(table:sales)--
+--project 2: retail sales analysis--
+--Database: retail_practice.db(table:sales)--
 --author: Sahitya vardhan--
 
---Q:category performance vs target
-SELECT sum("Total Amount") FROM sales
+--Q: category performance vs target
+SELECT SUM("Total Amount") AS total_beauty_sales
+FROM sales
 WHERE "Product Category" = 'Beauty';
 
---Q:show total sales per category.
-SELECT categories.category_name, sum(sales."Total Amount") AS actual_sales FROM sales
+--Q: show total sales per category.
+SELECT categories.category_name, SUM(sales."Total Amount") AS actual_sales
+FROM sales
 INNER JOIN categories ON sales."Product Category" = categories.category_name
 GROUP BY categories.category_name
-HAVING sum(sales."Total Amount") > 4000;
+HAVING SUM(sales."Total Amount") > 4000;
 
---Q:SUB QUERIES 
-SELECT * FROM sales
-WHERE "Total Amount" > ( SELECT avg("Total Amount") FROM sales);
+--Q: SUB QUERIES
+SELECT *
+FROM sales
+WHERE "Total Amount" > (SELECT AVG("Total Amount") FROM sales);
 
 --Q: group by + having
-select "Product Category", count(*) FROM sales
-group by "Product Category";
+SELECT "Product Category", COUNT(*) AS transaction_count
+FROM sales
+GROUP BY "Product Category";
 
---Q: using group by + having retrive the female transactions above the 250
-select "Product Category", Gender, sum("Total Amount") AS total_sales FROM sales
-Where Gender = 'Female'
-group by "Product Category"
-having sum("Total Amount") > 250;
+--Q: using group by + having retrieve the female transactions above 250
+SELECT "Product Category", Gender, SUM("Total Amount") AS total_sales
+FROM sales
+WHERE Gender = 'Female'
+GROUP BY "Product Category", Gender
+HAVING SUM("Total Amount") > 250;
 
---Q:average quantity per product category
-select "Product Category", avg("Quantity") FROM sales
-group by "Product Category";
+--Q: average quantity per product category
+SELECT "Product Category", AVG("Quantity") AS avg_quantity
+FROM sales
+GROUP BY "Product Category";
 
+--Q: use ROW_NUMBER with PARTITION BY to number transactions within each gender group, ordered by quantity descending.
+SELECT ROW_NUMBER() OVER (PARTITION BY "Gender" ORDER BY "Quantity" DESC) AS example_set,
+       "Transaction ID",
+       "Quantity",
+       "Gender"
+FROM sales;
 
---Q:USE ROW_NUMBER WITH PARTITON BY TO NUMBER TRANSACTIONS WITHIN THE EACH GENDER GROUP, ORDER BY QUANTITY DESCENDING.
-select row_number()over(PARTITION BY "Gender" ORDER BY "Quantity" DESC) AS EXAMPLE_SET, "Transaction ID", "Quantity", "Gender" FROM sales;
-
---Q:USING QUERY 3 ABOVE AS A BASE, WRITE A QUERY THAT SHOWS ONLY THE TOP RANKED (RANK =1) TRANSACTION PER CATEGORY
-select "product_category","Transaction ID" , "Total Amount" FROM (SELECT "product_category","Transaction ID" , "Total Amount", row_number() over(PARTITION BY "product_category" order by "Total Amount" DESC) RowNum FROM sales)
-WHERE
-RowNum = 1;
+--Q: using the query above as a base, show only the top-ranked (rank = 1) transaction per category
+SELECT "product_category", "Transaction ID", "Total Amount"
+FROM (
+    SELECT "product_category",
+           "Transaction ID",
+           "Total Amount",
+           ROW_NUMBER() OVER (PARTITION BY "product_category" ORDER BY "Total Amount" DESC) AS RowNum
+    FROM sales
+) AS ranked
+WHERE RowNum = 1;
 
 --Q: what is the highest value transaction for each product category
-SELECT "date", "Total Amount", "product_category", sum("Total Amount") OVER (PARTITION BY "product_category" ORDER BY "date") AS running_total FROM sales;
+SELECT "date", "Total Amount", "product_category",
+       SUM("Total Amount") OVER (PARTITION BY "product_category" ORDER BY "date") AS running_total
+FROM sales;
 
---Q:show each sale with its previous days amount and how much it changed?
-SELECT "date", "Total Amount", "product_category", lag("Total Amount") OVER (ORDER BY "date") AS PREVIOUS_AMT,
-"Total Amount" - lag("Total Amount") OVER (ORDER BY "date") AS change FROM sales;
+--Q: show each sale with its previous day amount and how much it changed
+SELECT "date",
+       "Total Amount",
+       "product_category",
+       LAG("Total Amount") OVER (ORDER BY "date") AS previous_amt,
+       "Total Amount" - LAG("Total Amount") OVER (ORDER BY "date") AS change
+FROM sales;
 
---Q: what are the top3 highest value transactions for each product caatgeory?
-select *FROM (select "product_category", "date", "Total Amount", row_number()over( PARTITION BY "product_category" ORDER BY"Total Amount" DESC) AS rn FROM sales)
-WHERE rn <=3;
+--Q: what are the top 3 highest value transactions for each product category?
+SELECT *
+FROM (
+    SELECT "product_category",
+           "date",
+           "Total Amount",
+           ROW_NUMBER() OVER (PARTITION BY "product_category" ORDER BY "Total Amount" DESC) AS rn
+    FROM sales
+) AS ranked_sales
+WHERE rn <= 3;
 
---Q:WHAT ARE THE TOP 2 HIGHEST VALUE TRANSACTIONS FOR EACH PRODUCT CATEGORY
-SELECT "date", "product_category", "Total Amount" FROM (SELECT "date", "product_category", "Total Amount", row_number()OVER( PARTITION BY "product_category" ORDER BY "Total Amount" DESC) AS top2_trans FROM sales)
-WHERE top2_trans <= 2
-;
+--Q: what are the top 2 highest value transactions for each product category?
+SELECT "date", "product_category", "Total Amount"
+FROM (
+    SELECT "date",
+           "product_category",
+           "Total Amount",
+           ROW_NUMBER() OVER (PARTITION BY "product_category" ORDER BY "Total Amount" DESC) AS top2_trans
+    FROM sales
+) AS ranked_sales
+WHERE top2_trans <= 2;
 
---Q:WHAT PERCENTAGE DOES EACH TRANSACTION CONTRIBUTE TO ITS CATEGORY TOTAL SALES
-SELECT "date", "product_category", "Total Amount",round("Total Amount" * 100 / sum("Total Amount")OVER( PARTITION BY "product_category" ORDER BY "Total Amount" DESC),2) AS pct_by_category FROM sales
+--Q: what percentage does each transaction contribute to its category total sales?
+SELECT "date",
+       "product_category",
+       "Total Amount",
+       ROUND("Total Amount" * 100.0 / SUM("Total Amount") OVER (PARTITION BY "product_category"), 2) AS pct_by_category
+FROM sales;
 
---Q: HOW MANY TRANSACTIONS ARE HIGH, MEDIUM OR LOW VALUE?
-SELECT count(*) AS CNT, "date", "product_category", "Total Amount", CASE WHEN "Total Amount" >= 1000 THEN "High" WHEN "Total Amount" >= 300 THEN "medium" ELSE 'LOW' END AS SIZE_LABEL FROM sales
-GROUP BY "SIZE_LABEL"
+--Q: how many transactions are high, medium or low value?
+SELECT COUNT(*) AS cnt,
+       CASE
+           WHEN "Total Amount" >= 1000 THEN 'High'
+           WHEN "Total Amount" >= 300 THEN 'Medium'
+           ELSE 'Low'
+       END AS size_label
+FROM sales
+GROUP BY CASE
+             WHEN "Total Amount" >= 1000 THEN 'High'
+             WHEN "Total Amount" >= 300 THEN 'Medium'
+             ELSE 'Low'
+         END;
 
---Q:what is the total value of beauty transactions of 500 or more?
-SELECT sum("Total Amount") FROM sales
+--Q: what is the total value of beauty transactions of 500 or more?
+SELECT SUM("Total Amount") AS total_beauty_revenue
+FROM sales
 WHERE "product_category" = 'Beauty' AND "Total Amount" >= 500;
 
---Q:Revenue by month. In SQLite, strftime('%m', date) pulls the month from the date. Group by it.
-SELECT strftime('%m', date) as month, sum("total_amount") as revenue from sales
-GROUP BY strftime('%m', date)
-ORDER BY month
-
---Q:The count of High, Medium and Low labels by category. Hint: put your CASE WHEN inside a derived table, then GROUP BY product_category, size_label.
-SELECT "date", "product_category" "total_amount",
-CASE when "total_amount" >= 1000 THEN 'HIGH'
-WHEN "total_amount" >300 THEN 'MEDIUM'
-ELSE'low'
-END AS SIZE_LABEL FROM sales
-GROUP BY "product_category", SIZE_LABEL
-ORDER BY "DATE" ASC;
-
---Q:combining in The count of High, Medium and Low labels by category. Hint: put your CASE WHEN inside a derived table, then GROUP BY product_category, size_label.
-
---Q:my question “how much revenue does each size band bring per category per month? --Q:
-
-SELECT "product_category", "total_amount", strftime('%m', date) AS month, SUM("total_amount") AS revenue, count(\*) as transactions,
-CASE when "total_amount" >= 1000 THEN 'HIGH'
-WHEN "total_amount" >300 THEN 'MEDIUM'
-ELSE'low'
-END AS SIZE_LABEL FROM sales
-GROUP BY "product_category", SIZE_LABEL, strftime('%m', date)
+--Q: revenue by month. In SQLite, strftime('%m', date) pulls the month from the date. Group by it.
+SELECT strftime('%m', "date") AS month,
+       SUM("total_amount") AS revenue
+FROM sales
+GROUP BY strftime('%m', "date")
 ORDER BY month;
+
+--Q: the count of High, Medium and Low labels by category. Hint: put your CASE WHEN inside a derived table, then GROUP BY product_category, size_label.
+SELECT "product_category",
+       size_label,
+       COUNT(*) AS label_count
+FROM (
+    SELECT "product_category",
+           CASE
+               WHEN "total_amount" >= 1000 THEN 'HIGH'
+               WHEN "total_amount" > 300 THEN 'MEDIUM'
+               ELSE 'LOW'
+           END AS size_label
+    FROM sales
+) AS labeled_sales
+GROUP BY "product_category", size_label
+ORDER BY "product_category", size_label;
+
+--Q: my question: how much revenue does each size band bring per category per month?
+SELECT "product_category",
+       strftime('%m', "date") AS month,
+       CASE
+           WHEN "total_amount" >= 1000 THEN 'HIGH'
+           WHEN "total_amount" > 300 THEN 'MEDIUM'
+           ELSE 'LOW'
+       END AS size_label,
+       SUM("total_amount") AS revenue,
+       COUNT(*) AS transactions
+FROM sales
+GROUP BY "product_category",
+         CASE
+             WHEN "total_amount" >= 1000 THEN 'HIGH'
+             WHEN "total_amount" > 300 THEN 'MEDIUM'
+             ELSE 'LOW'
+         END,
+         strftime('%m', "date")
+ORDER BY month;
+
+--Q: who are the top 3 customers by total spend, and how many transactions did each make?
+SELECT "customer_id",
+       COUNT(*) AS transactions,
+       SUM("total_amount") AS total_spend
+FROM sales
+GROUP BY "customer_id"
+ORDER BY total_spend DESC
+LIMIT 3;
